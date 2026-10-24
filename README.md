@@ -1,6 +1,8 @@
 # LetianStore — 自建应用商店框架（开源版）
 
-一个 ~60KB 的纯 Java Android 应用商店：浏览自建应用目录、下载（断点续传 + SHA256 校验）、安装、更新、自更新。无任何第三方依赖，no-gradle 纯 build-tools 构建。
+3.0.2本地兼容修复候选已增加旧版网页版升级路径、系统安装会话及真实结果校验；真机未通过，未发布、未合并，详见[当前验收记录](docs/RELEASE-3.0.2.md)。3.0.1撤回记录保留在[历史记录](docs/RELEASE-3.0.1.md)。
+
+一个约120KB 的纯 Java Android 应用商店：浏览自建应用目录、下载（断点续传 + SHA256 校验）、安装、更新、自更新。无任何第三方依赖，no-gradle 纯 build-tools 构建。
 
 **框架开源，配置不开源**：仓库里没有任何真实服务器地址/签名，全部通过打包时注入。
 
@@ -43,7 +45,7 @@ fork 本仓库
 ```json
 {
   "updated": "2026-10-24",
-  "self": { "versionCode": 8, "versionName": "3.0.0", "url": "https://…/store.apk",
+  "self": { "versionCode": 10, "versionName": "3.0.2", "url": "https://…/store.apk",
             "sha256": "…", "bytes": 65536, "notes": "…" },
   "apps": [
     {
@@ -60,7 +62,7 @@ fork 本仓库
 }
 ```
 
-字段除 `slug/name/package/url` 外全部可选；`sha256` 提供则下载后强校验；`force: true` 预留强更。
+字段除 `slug/name/package/url` 外全部可选；`sha256` 提供则下载后强校验；新版执行安装时要求有效SHA256、包名和递增版本，缺失则停止安装；`force: true` 预留强更。
 
 ## 构建
 
@@ -70,7 +72,7 @@ fork 本仓库
 ./build_store.sh config/store.properties out/letian-store.apk
 ```
 
-产物约 60-80KB（比 115KB 的旧版还小：没有 WebView 壳、没有冗余资源）。
+产物约120KB，以最终包大小和摘要为准。
 
 ## 目录结构
 
