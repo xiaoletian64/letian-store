@@ -78,9 +78,12 @@ echo "· 资源链接完成"
 
 # ---- javac（严格：有任何错误直接终止）----
 find .build/java -name "*.java" > .build/srcs.txt
-JOUT=$(javac -encoding UTF-8 -source 8 -target 8 -nowarn \
+if ! JOUT=$(javac -encoding UTF-8 -source 8 -target 8 -nowarn \
     -bootclasspath "$PLATFORM:$BT/core-lambda-stubs.jar" \
-    -d .build/classes @.build/srcs.txt 2>&1)
+    -d .build/classes @.build/srcs.txt 2>&1); then
+    echo "$JOUT" | tail -40
+    exit 1
+fi
 echo "$JOUT" | grep -q "error:" && { echo "$JOUT" | tail -40; echo "✗ javac 失败"; exit 1; }
 [ -d .build/classes/site ] || { echo "✗ javac 无输出（失败）"; echo "$JOUT" | tail -20; exit 1; }
 echo "· javac 完成"
@@ -96,9 +99,10 @@ echo "· dex 完成"
 # ---- 对齐 + 签名 ----
 "$BT/zipalign" -f 4 .build/base.apk .build/aligned.apk
 if [ -n "$KEYSTORE" ] && [ -f "$KEYSTORE" ]; then
+    export STORE_BUILD_PASSWORD="$KSPASS" STORE_BUILD_KEY_PASSWORD="$KEYPASS"
     "$BT/apksigner" sign \
         --ks "$KEYSTORE" --ks-key-alias "$ALIAS" \
-        --ks-pass "pass:$KSPASS" --key-pass "pass:$KEYPASS" \
+        --ks-pass env:STORE_BUILD_PASSWORD --key-pass env:STORE_BUILD_KEY_PASSWORD \
         --out "$OUT" .build/aligned.apk
     "$BT/apksigner" verify --print-certs "$OUT" | head -3
 else

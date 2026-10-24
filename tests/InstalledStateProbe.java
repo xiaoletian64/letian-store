@@ -21,6 +21,16 @@ public final class InstalledStateProbe extends Instrumentation {
   ClassLoader l=c.getClassLoader();Class<?> apps=l.loadClass("site.zhangyue.store.Apps"),model=l.loadClass("site.zhangyue.store.Model$App");
   Object app=model.newInstance();Field pkg=model.getField("pkg"),vc=model.getField("versionCode");
   Method status=apps.getMethod("status",Context.class,model),version=apps.getMethod("installedVersion",Context.class,model);
+  if("readyCache".equals(args.getString("mode"))){
+   check(android.os.Build.HARDWARE.equals("ranchu"),"owned emulator only");
+   java.io.File file=new java.io.File(c.getExternalFilesDir("apks"),"qa-ready.apk"),receipt=new java.io.File(file.getPath()+".sha");check(!file.exists()&&!receipt.exists(),"fixture already exists");
+   try {
+    java.nio.file.Files.write(file.toPath(),new byte[]{1,2,3});String sha=(String)apps.getMethod("sha256",java.io.File.class).invoke(null,file);java.nio.file.Files.write(receipt.toPath(),sha.getBytes("US-ASCII"));model.getField("slug").set(app,"qa-ready");model.getField("sha256").set(app,sha);model.getField("bytes").setLong(app,3);
+    Method ready=apps.getMethod("readyApk",Context.class,model);check(ready.invoke(null,c,app)!=null,"valid receipt ignored");
+    model.getField("sha256").set(app,"0000000000000000000000000000000000000000000000000000000000000000");check(ready.invoke(null,c,app)==null,"stale version offered for install");model.getField("sha256").set(app,sha);model.getField("bytes").setLong(app,4);check(ready.invoke(null,c,app)==null,"wrong-sized cached APK offered");model.getField("bytes").setLong(app,3);check(receipt.delete(),"fixture receipt cleanup");check(ready.invoke(null,c,app)==null,"missing receipt accepted");
+   } finally {file.delete();receipt.delete();}
+   result.putString("stream","PASS matching receipt accepted; stale/missing/size-mismatch cache rejected\n");finish(-1,result);return;
+  }
   pkg.set(app,"site.zhangyue.minis");long installed=c.getPackageManager().getPackageInfo("site.zhangyue.minis",0).getLongVersionCode();
   check(installed==121,"known formal121 required");
   vc.setLong(app,121);check((Integer)status.invoke(null,c,app)==2,"current package invisible");

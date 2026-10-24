@@ -17,8 +17,8 @@ store_name=乐天应用商店
 self_slug=letian-store
 
 # ---- 版本 ----
-versionCode=9
-versionName=3.0.1
+versionCode=10
+versionName=3.0.2
 
 # ---- 签名（keystore 不进仓库；路径留空则输出未签名包）----
 keystore=/opt/keystore-vault/minis-companion.keystore

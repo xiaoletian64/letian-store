@@ -30,7 +30,7 @@ public final class SelfUpdate {
             }
         }
         if (sSelf == null) return;
-        if (sInstalledVc < 0) {
+        { // Read the real version after returning from the system installer.
             android.content.pm.PackageInfo pi = null;
             try {
                 pi = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0);

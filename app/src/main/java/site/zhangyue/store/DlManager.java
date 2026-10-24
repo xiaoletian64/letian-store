@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.os.Build;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -157,15 +158,21 @@ public final class DlManager {
                     && !hex.equalsIgnoreCase(t.app.sha256)) {
                 throw new Exception("SHA256 校验失败");
             }
-            // 完整下载：记录 sha 到 sidecar 供断点续传场景二次校验
-            java.io.FileWriter fw = new java.io.FileWriter(t.file.getAbsolutePath() + ".sha");
-            fw.write(hex);
-            fw.close();
             if (!tmp.renameTo(t.file)) {
                 // rename 失败兜底拷贝
-                java.nio.file.Files.copy(tmp.toPath(), t.file.toPath(),
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                try (InputStream input = new FileInputStream(tmp);
+                        FileOutputStream output = new FileOutputStream(t.file)) {
+                    byte[] chunk = new byte[65536]; int read;
+                    while ((read = input.read(chunk)) != -1) output.write(chunk, 0, read);
+                    output.getFD().sync();
+                }
                 tmp.delete();
+            }
+            // The receipt only describes the file after the verified payload is in place.
+            File receipt = new File(t.file.getPath() + ".sha");
+            try (java.io.FileOutputStream fw = new java.io.FileOutputStream(receipt)) {
+                fw.write(hex.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+                fw.getFD().sync();
             }
             t.state = 2;
             notifyProgress(ctx, t, written, t.total, true);

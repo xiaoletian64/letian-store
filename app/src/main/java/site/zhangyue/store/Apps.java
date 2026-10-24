@@ -41,7 +41,20 @@ public final class Apps {
     /** 该清单项是否有下载完待安装的 APK。 */
     public static File readyApk(Context ctx, Model.App a) {
         File f = DlManager.apkFile(ctx, a.slug);
-        return f.exists() ? f : null;
+        File receipt = new File(f.getPath() + ".sha");
+        if (!f.isFile() || a.sha256 == null || !a.sha256.matches("(?i)[0-9a-f]{64}")
+                || (a.bytes > 0 && f.length() != a.bytes) || !receipt.isFile() || receipt.length() > 128) return null;
+        try {
+            byte[] bytes = new byte[129];
+            int count = 0;
+            try (java.io.InputStream in = new java.io.FileInputStream(receipt)) {
+                int n;
+                while (count < bytes.length && (n = in.read(bytes, count, bytes.length - count)) != -1) count += n;
+            }
+            if (count > 128) return null;
+            String completed = new String(bytes, 0, count, java.nio.charset.StandardCharsets.US_ASCII).trim();
+            return a.sha256.equalsIgnoreCase(completed) ? f : null;
+        } catch (java.io.IOException unreadable) { return null; }
     }
 
     public static String versionText(Model.App a) {

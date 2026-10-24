@@ -31,7 +31,8 @@
         </activity>
         <activity android:name=".DetailActivity" android:exported="false"/>
         <activity android:name=".DownloadActivity" android:exported="false"/>
-        <!-- 权限名与包名一致：Installer 用 getPackageName()+".apk" 推导 -->
+        <receiver android:name=".InstallReceiver" android:exported="false"/>
+        <!-- Retained for compatible read-only APK sharing; session installs do not depend on it. -->
         <provider
             android:name=".ApkProvider"
             android:authorities="site.zhangyue.store.apk"
