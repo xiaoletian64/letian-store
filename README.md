@@ -1,5 +1,7 @@
 # LetianStore — 自建应用商店框架（开源版）
 
+3.0.1修复候选已完成隔离安装状态验证，但实体安装被Play保护拦截，稳定发布已撤回，仍待验收；详见[发布记录](docs/RELEASE-3.0.1.md)。
+
 一个 ~60KB 的纯 Java Android 应用商店：浏览自建应用目录、下载（断点续传 + SHA256 校验）、安装、更新、自更新。无任何第三方依赖，no-gradle 纯 build-tools 构建。
 
 **框架开源，配置不开源**：仓库里没有任何真实服务器地址/签名，全部通过打包时注入。
@@ -43,7 +45,7 @@ fork 本仓库
 ```json
 {
   "updated": "2026-10-24",
-  "self": { "versionCode": 8, "versionName": "3.0.0", "url": "https://…/store.apk",
+  "self": { "versionCode": 9, "versionName": "3.0.1", "url": "https://…/store.apk",
             "sha256": "…", "bytes": 65536, "notes": "…" },
   "apps": [
     {

@@ -6,51 +6,36 @@ import android.content.pm.PackageManager;
 
 import java.io.File;
 import java.security.MessageDigest;
-import java.util.HashMap;
-import java.util.Map;
 
 /** Apps — 已安装状态与本地缓存的应用状态。 */
 public final class Apps {
-    private static Map<String, PackageInfo> sInstalled;
-
     public static final int NOT_INSTALLED = 0, UPDATABLE = 1, CURRENT = 2;
 
     private Apps() {}
 
-    public static synchronized Map<String, PackageInfo> installed(Context ctx) {
-        if (sInstalled == null) {
-            sInstalled = new HashMap<>();
-            PackageManager pm = ctx.getPackageManager();
-            for (PackageInfo pi : pm.getInstalledPackages(0)) {
-                sInstalled.put(pi.packageName, pi);
-            }
+    // Query the catalog package directly. Global/negative caches become stale after installs.
+    private static PackageInfo info(Context ctx, String packageName) {
+        try {
+            return ctx.getPackageManager().getPackageInfo(packageName, 0);
+        } catch (PackageManager.NameNotFoundException missing) {
+            return null;
         }
-        return sInstalled;
     }
 
-    public static synchronized void invalidate() { sInstalled = null; }
-
-    /** @return NOT_INSTALLED / UPDATABLE / CURRENT */
-    public static int status(Context ctx, Model.App a) {
-        PackageInfo pi = installed(ctx).get(a.pkg);
+    public static int status(Context ctx, Model.App app) {
+        PackageInfo pi = info(ctx, app.pkg);
         if (pi == null) return NOT_INSTALLED;
-        long vc;
-        try {
-            vc = pi.getLongVersionCode();     // API 28+
-        } catch (Throwable t) {
-            vc = pi.versionCode;              // API 24-27
-        }
-        return vc >= a.versionCode ? CURRENT : UPDATABLE;
+        return version(pi) >= app.versionCode ? CURRENT : UPDATABLE;
     }
 
-    public static long installedVersion(Context ctx, Model.App a) {
-        PackageInfo pi = installed(ctx).get(a.pkg);
-        if (pi == null) return 0;
-        try {
-            return pi.getLongVersionCode();
-        } catch (Throwable t) {
-            return pi.versionCode;
-        }
+    public static long installedVersion(Context ctx, Model.App app) {
+        PackageInfo pi = info(ctx, app.pkg);
+        return pi == null ? 0 : version(pi);
+    }
+
+    private static long version(PackageInfo pi) {
+        if (android.os.Build.VERSION.SDK_INT >= 28) return pi.getLongVersionCode();
+        return pi.versionCode;
     }
 
     /** 该清单项是否有下载完待安装的 APK。 */

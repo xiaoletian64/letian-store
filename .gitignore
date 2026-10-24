@@ -15,3 +15,5 @@ config/store.properties
 .DS_Store
 *.swp
 publish_store_v3.py
+
+.build-probes/
