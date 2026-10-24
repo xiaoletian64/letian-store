@@ -1,0 +1,17 @@
+# 打包注入的真实配置（永远不提交）
+config/store.properties
+
+# 构建产物
+.build/
+*.apk
+*-unsigned
+
+# 签名相关
+*.keystore
+*.jks
+*.idsig
+
+# 系统垃圾
+.DS_Store
+*.swp
+publish_store_v3.py

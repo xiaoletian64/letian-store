@@ -1,0 +1,30 @@
+# store.properties — 打包时由 build_store.sh 注入，真实值不进仓库
+# 复制为 config/store.properties 并填入你的部署信息
+
+# 应用目录清单（apps.json）的完整 URL —— 商店的数据源
+index_url=https://store.example.com/apps/apps.json
+
+# 网页版商店入口（详情页展示，可留空）
+web_url=https://store.example.com/
+
+# 大文件加速域（可留空；商店会把 .apk 下载映射到这个域）
+cdn_base=https://dl.example.com/
+
+# 商店显示名
+store_name=乐天应用商店
+
+# 商店自身在清单里的 slug（应用内自更新用）
+self_slug=letian-store
+
+# ---- 版本 ----
+versionCode=8
+versionName=3.0.0
+
+# ---- 签名（keystore 不进仓库；路径留空则输出未签名包）----
+keystore=/opt/keystore-vault/minis-companion.keystore
+alias=companion
+storepass=__KS_PASS__
+keypass=__KEY_PASS__
+
+# 可选：把一份 properties 内置进 APK assets（运行时覆盖用，一般留空）
+assets_props=
