@@ -28,8 +28,6 @@ public final class Apps {
         return sInstalled;
     }
 
-    public static synchronized void invalidate() { sInstalled = null; }
-
     /** @return NOT_INSTALLED / UPDATABLE / CURRENT */
     public static int status(Context ctx, Model.App a) {
         PackageInfo pi = installed(ctx).get(a.pkg);
@@ -53,10 +51,32 @@ public final class Apps {
         }
     }
 
-    /** 该清单项是否有下载完待安装的 APK。 */
-    public static File readyApk(Context ctx, Model.App a) {
+    /** 该清单项是否有下载完待安装的 APK。**
+     * v3.0.5：安装前先校验文件 sha256 与当前清单一致——
+     * 旧版本残留的过期包（清单已换版）直接删除并返回 null，杜绝「反复安装旧包」。 */
+    public static synchronized File readyApk(Context ctx, Model.App a) {
         File f = DlManager.apkFile(ctx, a.slug);
-        return f.exists() ? f : null;
+        if (!f.exists()) return null;
+        if (a.sha256 == null || a.sha256.isEmpty()) return f;   // 清单没给哈希，无法验证
+        String key = a.slug + ":" + a.sha256;
+        Boolean ok = sVerifyCache.get(key);
+        if (ok == null) {
+            String got = sha256(f);
+            ok = got != null && got.equalsIgnoreCase(a.sha256);
+            sVerifyCache.put(key, ok);
+            if (!ok) {                    // 过期包：删包+sidecar，下次更新走全新下载
+                f.delete();
+                new File(f.getAbsolutePath() + ".sha").delete();
+            }
+        }
+        return ok ? f : null;
+    }
+
+    private static final java.util.HashMap<String, Boolean> sVerifyCache = new java.util.HashMap<>();
+
+    public static synchronized void invalidate() {
+        sInstalled = null;
+        sVerifyCache.clear();
     }
 
     public static String versionText(Model.App a) {
