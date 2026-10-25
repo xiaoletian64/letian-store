@@ -16,12 +16,12 @@ chk "$(echo "$BADGING" | grep -oE "versionCode='[0-9]+'" | cut -d"'" -f2)" "$VC"
 chk "$($BT/apksigner verify --print-certs "$APK" 2>/dev/null | grep -c 'SHA-256 digest')" "1" "签名可验（companion 61d8245f…）"
 
 say "== 适配 =="
-DUMP=$($AAPT dump xmltree "$APK" --file AndroidManifest.xml 2>/dev/null)
+DUMP=$($AAPT dump xmltree "$APK" AndroidManifest.xml 2>/dev/null)
 echo "$DUMP" | grep -q "RECEIVE_BOOT_COMPLETED" && say "✓" "BOOT 权限（开机自动更新）" || { say "✗" "缺 RECEIVE_BOOT_COMPLETED"; FAIL=1; }
 echo "$DUMP" | grep -q "UpdateService" && say "✓" "UpdateService 注册" || { say "✗" "缺 UpdateService"; FAIL=1; }
 echo "$DUMP" | grep -q "ApkProvider\|\.apk\"" && say "✓" "ApkProvider（装包必需，v3 已知坑）" || { say "✗" "缺 ApkProvider"; FAIL=1; }
 unzip -l "$APK" | grep -q "mipmap-anydpi-v26/ic_launcher.xml" && say "✓" "自适应图标（各厂商桌面）" || { say "✗" "缺 anydpi-v26 自适应图标"; FAIL=1; }
-unzip -l "$APK" | grep -q "res/values-v29" && say "✓" "DayNight 主题（深色跟随系统）" || { say "✗" "缺 values-v29 DayNight"; FAIL=1; }
+$AAPT dump resources "$APK" 2>/dev/null | grep -q "v29" && say "✓" "DayNight 主题（深色跟随系统）" || { say "✗" "缺 values-v29 DayNight"; FAIL=1; }
 echo "$DUMP" | grep -q "uiMode" && { say "✗" "configChanges 含 uiMode（深色切换不重建，必须去掉）"; FAIL=1; } || say "✓" "configChanges 无 uiMode"
 "$BT/dexdump" "$APK" 2>/dev/null | grep -q "Ui;" && say "✓" "Ui 调色板类在 dex（深浅色共用）" || { say "✗" "Ui 类缺失"; FAIL=1; }
 
