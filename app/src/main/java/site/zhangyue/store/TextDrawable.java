@@ -9,7 +9,7 @@ import android.graphics.RectF;
 /** TextDrawable — 无网络时的占位图标（应用名首字 + 稳定配色）。 */
 public final class TextDrawable extends android.graphics.drawable.Drawable {
     private static final int[] PALETTE = {
-            0xFF2F6FED, 0xFFE5484D, 0xFF2F9E5F, 0xFF9A5CF5,
+            Ui.BLUE, Ui.RED, Ui.GREEN, 0xFF9A5CF5,
             0xFFF08C1A, 0xFF14919B, 0xFFD6409F, 0xFF5F6B7A
     };
 

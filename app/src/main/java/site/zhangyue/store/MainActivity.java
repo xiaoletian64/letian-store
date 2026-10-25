@@ -32,8 +32,6 @@ import java.util.Set;
 /** MainActivity — 商店主界面。 */
 public class MainActivity extends Activity {
 
-    static final int BLUE = 0xFF2F6FED, TXT = 0xFF17181A, SUB = 0xFF6B7078,
-            BG = 0xFFF5F6F8, CARD = 0xFFFFFFFF, GREEN = 0xFF2F9E5F, RED = 0xFFE5484D;
 
     private LinearLayout listContainer;
     private EditText search;
@@ -48,11 +46,14 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        Ui.refreshPalette(this);
+        Ui.requestNotifPerm(this);
         RuntimeConfig.init(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(BG);
+        root.setBackgroundColor(Ui.BG);
         setContentView(root);
+        Ui.applyWindow(this, root);
 
         // ===== 顶栏 =====
         LinearLayout top = new LinearLayout(this);
@@ -68,16 +69,16 @@ public class MainActivity extends Activity {
         brand.setText((sn == null ? "乐天应用商店" : sn));
         brand.setTextSize(22);
         brand.setTypeface(Typeface.DEFAULT_BOLD);
-        brand.setTextColor(TXT);
+        brand.setTextColor(Ui.TXT);
         titleRow.addView(brand, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
         // 更新角标
-        updatesBadge = badge("● 更新", GREEN);
+        updatesBadge = badge("● 更新", Ui.GREEN);
         updatesBadge.setOnClickListener(v -> showUpdates());
         titleRow.addView(updatesBadge);
         // 下载中角标
-        downloadingBadge = badge("↓ 0", BLUE);
+        downloadingBadge = badge("↓ 0", Ui.BLUE);
         downloadingBadge.setOnClickListener(v -> startActivity(
                 new Intent(this, DownloadActivity.class)));
         titleRow.addView(downloadingBadge);
@@ -86,7 +87,7 @@ public class MainActivity extends Activity {
         TextView subtitle = new TextView(this);
         subtitle.setText("自建应用 · 一键安装更新");
         subtitle.setTextSize(12);
-        subtitle.setTextColor(SUB);
+        subtitle.setTextColor(Ui.SUB);
         subtitle.setPadding(0, dp(2), 0, dp(4));
         top.addView(subtitle);
 
@@ -94,7 +95,7 @@ public class MainActivity extends Activity {
         LinearLayout searchWrap = new LinearLayout(this);
         searchWrap.setOrientation(LinearLayout.HORIZONTAL);
         searchWrap.setGravity(Gravity.CENTER_VERTICAL);
-        searchWrap.setBackground(round(0xFFECEEF2, 12));
+        searchWrap.setBackground(round(Ui.SOFT, 12));
         searchWrap.setPadding(dp(14), dp(2), dp(10), dp(2));
         LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -103,14 +104,14 @@ public class MainActivity extends Activity {
         TextView glass = new TextView(this);
         glass.setText("⌕ ");
         glass.setTextSize(16);
-        glass.setTextColor(SUB);
+        glass.setTextColor(Ui.SUB);
         searchWrap.addView(glass);
         search = new EditText(this);
         search.setBackground(null);
         search.setHint("搜索应用");
         search.setTextSize(15);
-        search.setTextColor(TXT);
-        search.setHintTextColor(0xFF9AA0A8);
+        search.setTextColor(Ui.TXT);
+        search.setHintTextColor(Ui.HINT);
         search.setSingleLine(true);
         searchWrap.addView(search, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1));
@@ -135,7 +136,7 @@ public class MainActivity extends Activity {
         // loading 行
         loading = new TextView(this);
         loading.setText("正在加载应用目录…");
-        loading.setTextColor(SUB);
+        loading.setTextColor(Ui.SUB);
         loading.setGravity(Gravity.CENTER);
         loading.setPadding(0, dp(48), 0, 0);
         listContainer.addView(loading);
@@ -221,7 +222,7 @@ public class MainActivity extends Activity {
                 TextView err = new TextView(this);
                 err.setText(Repo.lastError == null
                         ? "正在加载…" : "加载失败：" + Repo.lastError + "\n\n下拉重试：退出重进");
-                err.setTextColor(SUB);
+                err.setTextColor(Ui.SUB);
                 err.setGravity(Gravity.CENTER);
                 err.setPadding(0, dp(48), 0, 0);
                 listContainer.addView(err);
@@ -262,7 +263,7 @@ public class MainActivity extends Activity {
         if (apps.isEmpty()) {
             TextView none = new TextView(this);
             none.setText("没有匹配的应用");
-            none.setTextColor(SUB);
+            none.setTextColor(Ui.SUB);
             none.setGravity(Gravity.CENTER);
             none.setPadding(0, dp(40), 0, 0);
             listContainer.addView(none);
@@ -300,7 +301,7 @@ public class MainActivity extends Activity {
         t.setText(text);
         t.setTextSize(13);
         t.setTypeface(Typeface.DEFAULT_BOLD);
-        t.setTextColor(SUB);
+        t.setTextColor(Ui.SUB);
         t.setPadding(dp(6), dp(16), dp(6), dp(6));
         return t;
     }
@@ -311,7 +312,7 @@ public class MainActivity extends Activity {
         card.setGravity(Gravity.CENTER_VERTICAL);
         card.setPadding(dp(12), dp(10), dp(12), dp(10));
         GradientDrawable bgc = new GradientDrawable();
-        bgc.setColor(CARD);
+        bgc.setColor(Ui.CARD);
         bgc.setCornerRadius(dp(14));
         card.setBackground(bgc);
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
@@ -341,14 +342,14 @@ public class MainActivity extends Activity {
         name.setText(a.name);
         name.setTextSize(16);
         name.setTypeface(Typeface.DEFAULT_BOLD);
-        name.setTextColor(TXT);
+        name.setTextColor(Ui.TXT);
         info.addView(name);
         TextView desc = new TextView(this);
         String d = a.summary == null ? "" : a.summary;
         if (d.length() > 42) d = d.substring(0, 42) + "…";
         desc.setText(d);
         desc.setTextSize(12);
-        desc.setTextColor(SUB);
+        desc.setTextColor(Ui.SUB);
         info.addView(desc);
         TextView ver = new TextView(this);
         int st = Apps.status(this, a);
@@ -360,7 +361,7 @@ public class MainActivity extends Activity {
         else if (st == Apps.CURRENT) vs += " · 已安装";
         ver.setText(vs);
         ver.setTextSize(11);
-        ver.setTextColor(st == Apps.UPDATABLE || ready != null ? GREEN : 0xFF9AA0A8);
+        ver.setTextColor(st == Apps.UPDATABLE || ready != null ? Ui.GREEN : Ui.HINT);
         info.addView(ver);
         card.addView(info, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
@@ -374,19 +375,19 @@ public class MainActivity extends Activity {
         if (t != null && (t.state == 0 || t.state == 1)) {
             long total = t.total > 0 ? t.total : Math.max(a.bytes, 1);
             action.setText(t.state == 0 ? "排队" : (t.total > 0 ? (int) (100 * t.soFar / total) + "%" : "…"));
-            action.setBackground(round(0xFFC9CED6, 10));
+            action.setBackground(round(Ui.DISABLED, 10));
             action.setOnClickListener(null);
         } else if (t != null && t.state == 3) {
             action.setText("重试");
-            action.setBackground(round(RED, 10));
+            action.setBackground(round(Ui.RED, 10));
             action.setOnClickListener(v -> {
                 DlManager.enqueue(this, a);
                 Repo.preferDownloadHost(this, a);
             });
         } else if (st == Apps.CURRENT) {
             action.setText("打开");
-            action.setBackground(round(0xFFECEEF2, 10));
-            action.setTextColor(BLUE);
+            action.setBackground(round(Ui.SOFT, 10));
+            action.setTextColor(Ui.BLUE);
             action.setOnClickListener(v -> {
                 Intent li = getPackageManager().getLaunchIntentForPackage(a.pkg);
                 if (li != null) startActivity(li);
@@ -394,7 +395,7 @@ public class MainActivity extends Activity {
             });
         } else if (ready != null) {
             action.setText("安装");
-            action.setBackground(round(GREEN, 10));
+            action.setBackground(round(Ui.GREEN, 10));
             action.setOnClickListener(v -> Installer.install(this, a, ready, (ok, msg) -> {
                 if (!ok && msg != null) {
                     runOnUiThread(() -> Toast.makeText(this, msg, Toast.LENGTH_LONG).show());
@@ -403,7 +404,7 @@ public class MainActivity extends Activity {
         } else {
             boolean up = st == Apps.UPDATABLE;
             action.setText(up ? "更新" : "安装");
-            action.setBackground(round(BLUE, 10));
+            action.setBackground(round(Ui.BLUE, 10));
             action.setOnClickListener(v -> {
                 DlManager.enqueue(this, a);
                 Repo.preferDownloadHost(this, a);

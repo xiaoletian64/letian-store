@@ -26,9 +26,10 @@ public class DownloadActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        Ui.refreshPalette(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFFF5F6F8);
+        root.setBackgroundColor(Ui.BG);
 
         // 顶栏
         LinearLayout bar = new LinearLayout(this);
@@ -38,7 +39,7 @@ public class DownloadActivity extends Activity {
         TextView back = new TextView(this);
         back.setText("‹ 返回");
         back.setTextSize(15);
-        back.setTextColor(DetailActivity.BLUE);
+        back.setTextColor(Ui.BLUE);
         back.setClickable(true);
         back.setOnClickListener(v -> finish());
         bar.addView(back);
@@ -46,7 +47,7 @@ public class DownloadActivity extends Activity {
         title.setText("  下载管理");
         title.setTextSize(18);
         title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setTextColor(DetailActivity.TXT);
+        title.setTextColor(Ui.TXT);
         bar.addView(title);
         root.addView(bar, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -58,6 +59,7 @@ public class DownloadActivity extends Activity {
         root.addView(sc, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        Ui.applyWindow(this, root);
     }
 
     private int dp(float v) {
@@ -118,7 +120,7 @@ public class DownloadActivity extends Activity {
             if (!any) {
                 TextView empty = new TextView(this);
                 empty.setText("还没有下载任务");
-                empty.setTextColor(DetailActivity.SUB);
+                empty.setTextColor(Ui.SUB);
                 empty.setGravity(Gravity.CENTER);
                 empty.setPadding(0, dp(60), 0, 0);
                 list.addView(empty);
@@ -153,7 +155,7 @@ public class DownloadActivity extends Activity {
         name.setText(a.name);
         name.setTextSize(15);
         name.setTypeface(Typeface.DEFAULT_BOLD);
-        name.setTextColor(DetailActivity.TXT);
+        name.setTextColor(Ui.TXT);
         info.addView(name);
         TextView sub = new TextView(this);
         if (t != null && t.state == 1) {
@@ -162,17 +164,17 @@ public class DownloadActivity extends Activity {
                     + "（" + (100 * t.soFar / total) + "%）");
         } else if (t != null && t.state == 3) {
             sub.setText("失败：" + t.error);
-            sub.setTextColor(DetailActivity.RED);
+            sub.setTextColor(Ui.RED);
         } else if (apk.exists()) {
             sub.setText("已下载 · " + DlManager.fmt(apk.length()) + " · 待安装");
-            sub.setTextColor(0xFF2F9E5F);
+            sub.setTextColor(Ui.GREEN);
         } else if (t != null && t.state == 0) {
             sub.setText("排队中…");
         } else {
             sub.setText("v" + a.versionName);
         }
         sub.setTextSize(12);
-        sub.setTextColor(DetailActivity.SUB);
+        sub.setTextColor(Ui.SUB);
         info.addView(sub);
         row.addView(info, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
@@ -180,16 +182,16 @@ public class DownloadActivity extends Activity {
         TextView btn = new TextView(this);
         btn.setTextSize(13);
         btn.setPadding(dp(12), dp(6), dp(12), dp(6));
-        btn.setBackground(round(DetailActivity.BLUE, 10));
+        btn.setBackground(round(Ui.BLUE, 10));
         btn.setTextColor(Color.WHITE);
         btn.setClickable(true);
         if (t != null && (t.state == 0 || t.state == 1)) {
             btn.setText("下载中");
-            btn.setBackground(round(0xFFC9CED6, 10));
+            btn.setBackground(round(Ui.DISABLED, 10));
             btn.setOnClickListener(null);
         } else if (t != null && t.state == 3) {
             btn.setText("重试");
-            btn.setBackground(round(DetailActivity.RED, 10));
+            btn.setBackground(round(Ui.RED, 10));
             btn.setOnClickListener(v -> {
                 DlManager.Task old = DlManager.get(a.slug);
                 // 失败任务重新入队（enqueue 内部会清失败态）
@@ -219,7 +221,7 @@ public class DownloadActivity extends Activity {
             TextView del = new TextView(this);
             del.setText(" 删");
             del.setTextSize(13);
-            del.setTextColor(DetailActivity.RED);
+            del.setTextColor(Ui.RED);
             del.setClickable(true);
             del.setPadding(dp(8), dp(6), 0, dp(6));
             del.setOnClickListener(v -> {

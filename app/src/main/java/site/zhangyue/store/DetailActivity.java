@@ -26,7 +26,6 @@ import java.util.Set;
 /** DetailActivity — 应用详情页。 */
 public class DetailActivity extends Activity {
 
-    static final int BLUE = 0xFF2F6FED, RED = 0xFFE5484D, GREY = 0xFFEDF0F5, TXT = 0xFF17181A, SUB = 0xFF6B7078;
 
     private Model.App app;
     private TextView actionBtn, stateText;
@@ -67,12 +66,14 @@ public class DetailActivity extends Activity {
 
     private void build() {
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFFF5F6F8);
+        Ui.refreshPalette(this);
+        scroll.setBackgroundColor(Ui.BG);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(32));
         scroll.addView(root);
         setContentView(scroll);
+        Ui.applyWindow(this, scroll);
 
         // 头部：icon + 名字 + 版本行
         LinearLayout head = new LinearLayout(this);
@@ -97,12 +98,12 @@ public class DetailActivity extends Activity {
         name.setText(app.name);
         name.setTextSize(20);
         name.setTypeface(Typeface.DEFAULT_BOLD);
-        name.setTextColor(TXT);
+        name.setTextColor(Ui.TXT);
         headText.addView(name);
         TextView meta = new TextView(this);
         meta.setText(Apps.versionText(app) + (app.bytes > 0 ? " · " + app.sizeText() : ""));
         meta.setTextSize(13);
-        meta.setTextColor(SUB);
+        meta.setTextColor(Ui.SUB);
         headText.addView(meta);
         head.addView(headText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         root.addView(head);
@@ -112,8 +113,8 @@ public class DetailActivity extends Activity {
             LinearLayout chips = new LinearLayout(this);
             chips.setOrientation(LinearLayout.HORIZONTAL);
             chips.setPadding(0, dp(10), 0, 0);
-            if (app.category != null) chips.addView(chip(app.category, BLUE));
-            for (String t : app.tags) chips.addView(chip(t, SUB));
+            if (app.category != null) chips.addView(chip(app.category, Ui.BLUE));
+            for (String t : app.tags) chips.addView(chip(t, Ui.SUB));
             root.addView(chips);
         }
 
@@ -124,7 +125,7 @@ public class DetailActivity extends Activity {
         actionBtn.setTextSize(16);
         actionBtn.setTypeface(Typeface.DEFAULT_BOLD);
         actionBtn.setTextColor(Color.WHITE);
-        actionBtn.setBackground(round(BLUE, 12));
+        actionBtn.setBackground(round(Ui.BLUE, 12));
         actionBtn.setClickable(true);
         LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -134,7 +135,7 @@ public class DetailActivity extends Activity {
 
         stateText = new TextView(this);
         stateText.setTextSize(12);
-        stateText.setTextColor(SUB);
+        stateText.setTextColor(Ui.SUB);
         stateText.setPadding(dp(4), dp(6), dp(4), 0);
         stateText.setGravity(Gravity.CENTER);
         root.addView(stateText);
@@ -149,7 +150,7 @@ public class DetailActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         progressText = new TextView(this);
         progressText.setTextSize(12);
-        progressText.setTextColor(SUB);
+        progressText.setTextColor(Ui.SUB);
         progressText.setGravity(Gravity.CENTER);
         progressText.setPadding(0, dp(4), 0, 0);
         progressWrap.addView(progressText);
@@ -183,7 +184,7 @@ public class DetailActivity extends Activity {
         t1.setText(title);
         t1.setTypeface(Typeface.DEFAULT_BOLD);
         t1.setTextSize(15);
-        t1.setTextColor(TXT);
+        t1.setTextColor(Ui.TXT);
         LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         p1.topMargin = dp(20);
@@ -191,7 +192,7 @@ public class DetailActivity extends Activity {
         TextView t2 = new TextView(this);
         t2.setText(body);
         t2.setTextSize(14);
-        t2.setTextColor(SUB);
+        t2.setTextColor(Ui.SUB);
         t2.setLineSpacing(dp(3), 1);
         root.addView(t2);
     }
@@ -214,7 +215,7 @@ public class DetailActivity extends Activity {
         TextView l = new TextView(this);
         l.setText(text);
         l.setTextSize(13);
-        l.setTextColor(BLUE);
+        l.setTextColor(Ui.BLUE);
         l.setPadding(dp(10), dp(6), dp(10), dp(6));
         l.setClickable(true);
         l.setOnClickListener(v -> {
@@ -294,11 +295,11 @@ public class DetailActivity extends Activity {
         File ready = Apps.readyApk(this, app);
         DlManager.Task t = DlManager.get(app.slug);
         String name = "安装";
-        int color = BLUE;
+        int color = Ui.BLUE;
         boolean clickable = true;
         if (t != null && t.state == 1) {
             name = "下载中…";
-            color = GREY;
+            color = Ui.GREY;
             progressWrap.setVisibility(View.VISIBLE);
             long total = t.total > 0 ? t.total : Math.max(t.app.bytes, 1);
             progress.setProgress((int) (10000 * t.soFar / total));
@@ -307,30 +308,30 @@ public class DetailActivity extends Activity {
             stateText.setText("");
         } else if (t != null && t.state == 0) {
             name = "排队中…";
-            color = GREY;
+            color = Ui.GREY;
             progressWrap.setVisibility(View.GONE);
         } else if (t != null && t.state == 3) {
             name = "重试下载";
-            color = RED;
+            color = Ui.RED;
             progressWrap.setVisibility(View.GONE);
             stateText.setText("上次失败：" + t.error);
         } else if (ready != null && st != Apps.CURRENT) {
             name = st == Apps.UPDATABLE ? "安装已下载的更新" : "安装已下载";
-            color = 0xFF2F9E5F;
+            color = Ui.GREEN;
             progressWrap.setVisibility(View.GONE);
         } else if (st == Apps.UPDATABLE) {
             name = "更新 · v" + app.versionName;
             progressWrap.setVisibility(View.GONE);
         } else if (st == Apps.CURRENT) {
             name = "打开";
-            color = 0xFF2F9E5F;
+            color = Ui.GREEN;
             progressWrap.setVisibility(View.GONE);
         } else {
             progressWrap.setVisibility(View.GONE);
         }
         actionBtn.setText(name);
-        actionBtn.setBackground(round(color == GREY ? 0xFFC9CED6 : color, 12));
-        actionBtn.setAlpha(color == GREY ? 0.85f : 1f);
+        actionBtn.setBackground(round(color == Ui.GREY ? Ui.DISABLED : color, 12));
+        actionBtn.setAlpha(color == Ui.GREY ? 0.85f : 1f);
         actionBtn.setClickable(clickable);
     }
 
