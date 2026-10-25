@@ -1,0 +1,44 @@
+apply plugin: 'com.android.application'
+
+// 纯框架 API（无 AndroidX 依赖），与 build_store.sh 直构共用 app/src/main 同一份源码。
+// 发版时版本号两处同步改：本文件 defaultConfig + 106:/opt/store-v3/config/store.properties
+android {
+    namespace 'site.zhangyue.store'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "site.zhangyue.store"
+        minSdk 24
+        targetSdk 35
+        versionCode 13
+        versionName "3.0.4"
+    }
+
+    def ks = file(System.getenv("STORE_KEYSTORE") ?: "keystore.jks")
+    signingConfigs {
+        release {
+            storeFile ks
+            storePassword System.getenv("STORE_KEYPASS") ?: ""
+            keyAlias System.getenv("STORE_ALIAS") ?: "companion"
+            keyPassword System.getenv("STORE_KEYPASS") ?: ""
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // 有 keystore（本地/注入 Secret）→ 直接签名；没有（CI 默认）→ unsigned 包，
+            // 产物交回 106 用 apksigner 二次签名发布，签名钥永不出 106
+            signingConfig ks.exists() ? signingConfigs.release : null
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+// 零第三方依赖：framework API only
+dependencies {
+}

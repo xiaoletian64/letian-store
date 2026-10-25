@@ -1,0 +1,46 @@
+name: android-build
+
+# 乐天商店 CI 构建（public 仓库 Actions 免费）：
+#   产出 unsigned release APK artifact → 下载后 106 apksigner 签名发布（签名钥不出 106）
+# 注：AGP 8 要求 Manifest 无 package= 属性（namespace 在 build.gradle），
+#     而直构 aapt2 需要 package= —— checkout 后剥离，只影响 CI 副本，不回写仓库。
+on:
+  push:
+    branches: [main]
+    paths: ['app/src/**', 'app/build.gradle', 'build.gradle', 'settings.gradle', 'gradle.properties', '.github/workflows/android-build.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Strip manifest package attr (AGP8 uses namespace)
+        run: |
+          python3 - <<'EOF'
+          p = "app/src/main/AndroidManifest.xml"
+          s = open(p).read()
+          import re
+          s = re.sub(r'\s+package="[^"]+"', '', s, count=1)
+          open(p, "w").write(s)
+          print("stripped package attr ok")
+          EOF
+
+      - name: Assemble release (unsigned)
+        run: gradle assembleRelease --no-daemon
+
+      - name: Rename artifact
+        run: |
+          find app/build/outputs/apk/release -name "*.apk" -exec cp {} letian-store-ci-unsigned.apk \;
+          sha256sum letian-store-ci-unsigned.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: letian-store-unsigned
+          path: letian-store-ci-unsigned.apk

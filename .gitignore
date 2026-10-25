@@ -3,6 +3,7 @@ config/store.properties
 
 # 构建产物
 .build/
+app/build/
 *.apk
 *-unsigned
 
@@ -11,7 +12,11 @@ config/store.properties
 *.jks
 *.idsig
 
+# Gradle
+.gradle/
+build/
+local.properties
+
 # 系统垃圾
 .DS_Store
 *.swp
-publish_store_v3.py
