@@ -65,7 +65,7 @@ fi
 
 # ---- aapt2 编译资源 + 链接 ----
 "$BT/aapt2" compile --dir .build/res -o .build/res.zip
-[ -d .build/assets ] || mkdir -p .build/assets
+mkdir -p .build/assets
 "$BT/aapt2" link -o .build/base.apk \
     -I "$PLATFORM" \
     --manifest .build/AndroidManifest.xml \

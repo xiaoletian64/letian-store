@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** DlManager — 串行下载队列 + 进度通知 + SHA256 校验。 */
+/** DlManager — 串行下载队列 + 进度通知 + SHA256 校验 + 自动重试 + 备用源回落。 */
 public final class DlManager {
     public static final String CHANNEL = "dl";
     public static final int NOTIFY_ID = 42;
@@ -34,11 +34,15 @@ public final class DlManager {
         public volatile long soFar, total;
         public volatile String error;
         public File file;
+        volatile int retries;           // 已重试次数
+        volatile boolean viaFallback;   // 本次是否走了备用源
     }
 
+    private static final int MAX_RETRIES = 3;             // 单源失败自动重试次数（含首试共4次）
     private static final ConcurrentHashMap<String, Task> TASKS = new ConcurrentHashMap<>();
     private static final List<Listener> LISTENERS = new ArrayList<>();
     private static Thread sWorker;
+    public static volatile int lastSuccessCount;          // 最近一轮自动更新成功数（诊断用）
 
     private DlManager() {}
 
@@ -66,7 +70,7 @@ public final class DlManager {
     public static synchronized void enqueue(Context ctx, Model.App a) {
         if (TASKS.containsKey(a.slug)) {
             Task t = TASKS.get(a.slug);
-            if (t.state == 3) TASKS.remove(a.slug);
+            if (t.state == 3 || t.state == 2) TASKS.remove(a.slug);
             else return;
         }
         Task t = new Task();
@@ -102,77 +106,126 @@ public final class DlManager {
 
     private static void run(Context ctx, Task t) {
         t.state = 1;
-        t.soFar = 0;
+        t.error = null;
         fire();
-        File tmp = new File(t.file.getAbsolutePath() + ".part");
-        try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(t.url).openConnection();
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(30000);
-            conn.setInstanceFollowRedirects(true);
-            conn.setRequestProperty("User-Agent", "LetianStore/3.0 (Android)");
-            if (tmp.exists() && tmp.length() > 0) {
-                // 断点续传
-                conn.setRequestProperty("Range", "bytes=" + tmp.length() + "-");
-            }
-            int code = conn.getResponseCode();
-            long total;
-            InputStream is;
-            if (code == 206) {
-                total = tmp.length() + parseTotal(conn.getHeaderField("Content-Range"));
-                is = conn.getInputStream();
-            } else if (code == 200) {
-                total = conn.getContentLengthLong();
-                is = conn.getInputStream();
-                tmp.delete(); // 服务器不支持续传，重下
-            } else {
-                throw new Exception("HTTP " + code);
-            }
-            t.total = total > 0 ? total : Math.max(t.app.bytes, 1);
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            long written = tmp.exists() ? tmp.length() : 0;
-            t.soFar = written;
-            FileOutputStream out = new FileOutputStream(tmp, true);
-            byte[] buf = new byte[65536];
-            int n;
-            long lastFire = 0;
-            while ((n = is.read(buf)) > 0) {
-                out.write(buf, 0, n);
-                md.update(buf, 0, n);
-                written += n;
-                t.soFar = written;
-                long now = System.currentTimeMillis();
-                if (now - lastFire > 400) {
-                    lastFire = now;
-                    fire();
-                    notifyProgress(ctx, t, written, t.total, false);
+        // 下载后完整文件里的旧 .sha 已不可信，删除（校验以清单 sha256 为准）
+        new File(t.file.getAbsolutePath() + ".sha").delete();
+
+        int attempt = 0;
+        boolean useFallback = false;
+        String lastErr = null;
+        while (attempt <= MAX_RETRIES) {
+            String url = t.url;
+            String fb = t.app.urlFallback;
+            if (useFallback && fb != null && !fb.equals(t.url)) url = fb;
+            try {
+                downloadOnce(ctx, t, url, useFallback);
+                lastSuccessCount++;
+                t.state = 2;
+                notifyProgress(ctx, t, t.total, t.total, true);
+                return;
+            } catch (Exception e) {
+                lastErr = e.getMessage();
+                attempt++;
+                // 首源失败次数用完且存在备用源 → 切备用源重新计重试次数
+                if (!useFallback && attempt > MAX_RETRIES && t.app.urlFallback != null
+                        && !t.app.urlFallback.equals(t.url)) {
+                    useFallback = true;
+                    attempt = 0;
+                    continue;
+                }
+                if (attempt <= MAX_RETRIES) {
+                    try { Thread.sleep(Math.min(3000L * attempt, 9000L)); }
+                    catch (InterruptedException ie) { Thread.currentThread().interrupt(); return; }
                 }
             }
-            out.close();
-            is.close();
+        }
+        t.state = 3;
+        t.error = lastErr != null ? lastErr : "下载失败";
+        t.viaFallback = useFallback;
+        notifyProgress(ctx, null, 0, 0, true);
+    }
+
+    /** 单次下载尝试（支持从 .part 断点续传；服务器不支持 206 时自动清 part 重来）。 */
+    private static void downloadOnce(Context ctx, Task t, String url, boolean viaFallback)
+            throws Exception {
+        t.viaFallback = viaFallback;
+        File tmp = new File(t.file.getAbsolutePath() + ".part");
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(30000);
+        conn.setInstanceFollowRedirects(true);
+        conn.setRequestProperty("User-Agent", "LetianStore/3.0 (Android)");
+        if (tmp.exists() && tmp.length() > 0) {
+            // 断点续传
+            conn.setRequestProperty("Range", "bytes=" + tmp.length() + "-");
+        }
+        int code = conn.getResponseCode();
+        long total;
+        InputStream is;
+        if (code == 416) {                       // part 已超长（换源/换文件）：清掉重来
+            tmp.delete();
             conn.disconnect();
-            if (t.total > 0 && written != t.total) throw new Exception("长度不符 " + written + "/" + t.total);
-            String hex = hex(md.digest());
-            if (t.app.sha256 != null && !t.app.sha256.isEmpty()
-                    && !hex.equalsIgnoreCase(t.app.sha256)) {
-                throw new Exception("SHA256 校验失败");
+            throw new Exception("续传偏移失效，重试中");
+        }
+        if (code == 206) {
+            total = tmp.length() + parseTotal(conn.getHeaderField("Content-Range"));
+            is = conn.getInputStream();
+        } else if (code == 200) {
+            total = conn.getContentLengthLong();
+            is = conn.getInputStream();
+            tmp.delete(); // 服务器不支持续传，重下
+        } else {
+            conn.disconnect();
+            throw new Exception("HTTP " + code);
+        }
+        t.total = total > 0 ? total : Math.max(t.app.bytes, 1);
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        long written = tmp.exists() ? tmp.length() : 0;
+        t.soFar = written;
+        // 续传时先补算已有部分的摘要，保证最终 SHA256 可校验
+        if (written > 0) {
+            try (java.io.InputStream pin = new java.io.FileInputStream(tmp)) {
+                byte[] pbuf = new byte[65536];
+                int pn;
+                while ((pn = pin.read(pbuf)) > 0) md.update(pbuf, 0, pn);
             }
-            // 完整下载：记录 sha 到 sidecar 供断点续传场景二次校验
-            java.io.FileWriter fw = new java.io.FileWriter(t.file.getAbsolutePath() + ".sha");
-            fw.write(hex);
-            fw.close();
-            if (!tmp.renameTo(t.file)) {
-                // rename 失败兜底拷贝
-                java.nio.file.Files.copy(tmp.toPath(), t.file.toPath(),
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                tmp.delete();
+        }
+        FileOutputStream out = new FileOutputStream(tmp, true);
+        byte[] buf = new byte[65536];
+        int n;
+        long lastFire = 0;
+        while ((n = is.read(buf)) > 0) {
+            out.write(buf, 0, n);
+            md.update(buf, 0, n);
+            written += n;
+            t.soFar = written;
+            long now = System.currentTimeMillis();
+            if (now - lastFire > 400) {
+                lastFire = now;
+                fire();
+                notifyProgress(ctx, t, written, t.total, false);
             }
-            t.state = 2;
-            notifyProgress(ctx, t, written, t.total, true);
-        } catch (Exception e) {
-            t.state = 3;
-            t.error = String.valueOf(e.getMessage());
-            notifyProgress(ctx, null, 0, 0, true);
+        }
+        out.close();
+        is.close();
+        conn.disconnect();
+        if (t.total > 0 && written != t.total) throw new Exception("长度不符 " + written + "/" + t.total);
+        String hex = hex(md.digest());
+        if (t.app.sha256 != null && !t.app.sha256.isEmpty()
+                && !hex.equalsIgnoreCase(t.app.sha256)) {
+            tmp.delete();                        // 内容不对，part 留着只会一直失败
+            throw new Exception("SHA256 校验失败");
+        }
+        // 完整下载：记录 sha 到 sidecar 供二次校验
+        java.io.FileWriter fw = new java.io.FileWriter(t.file.getAbsolutePath() + ".sha");
+        fw.write(hex);
+        fw.close();
+        if (!tmp.renameTo(t.file)) {
+            // rename 失败兜底拷贝
+            java.nio.file.Files.copy(tmp.toPath(), t.file.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            tmp.delete();
         }
     }
 
@@ -215,7 +268,8 @@ public final class DlManager {
                         ? new android.app.Notification.Builder(ctx, CHANNEL)
                         : new android.app.Notification.Builder(ctx);
         b.setSmallIcon(android.R.drawable.stat_sys_download)
-                .setContentTitle(t.app.name + " " + fmt(so) + "/" + fmt(total))
+                .setContentTitle(t.app.name + " " + fmt(so) + "/" + fmt(total)
+                        + (t.viaFallback ? "（备用线路）" : ""))
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setProgress(total > 0 ? (int) Math.min(total, Integer.MAX_VALUE) : 0,

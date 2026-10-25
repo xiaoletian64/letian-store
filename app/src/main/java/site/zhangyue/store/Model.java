@@ -18,7 +18,7 @@ import java.util.List;
 public final class Model {
 
     public static final class App {
-        public String slug, name, pkg, versionName, summary, notes, icon, url, sha256, category;
+        public String slug, name, pkg, versionName, summary, notes, icon, url, urlFallback, sha256, category;
         public long versionCode, bytes;
         public boolean force;
         public String[] tags = new String[0];
@@ -95,6 +95,7 @@ public final class Model {
             a.notes = o.optString("notes", "");
             a.icon = o.optString("icon", null);
             a.url = o.optString("url", null);
+            a.urlFallback = o.optString("urlFallback", null);
             a.sha256 = o.optString("sha256", null);
             a.bytes = o.optLong("bytes", 0);
             a.category = o.optString("category", "应用");

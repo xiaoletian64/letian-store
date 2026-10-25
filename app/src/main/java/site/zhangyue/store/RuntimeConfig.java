@@ -100,7 +100,7 @@ public final class RuntimeConfig {
         return b + u;
     }
 
-    /** 下载域映射：清单指向旧域的 .apk 时换到 cdn 域（加速）。 */
+    /** 下载域映射：清单主站的 apk 按路径映射到 cdn 域（加速）。 */
     public static String accelerate(Context ctx, String url) {
         String cdn = cdnBase(ctx);
         if (cdn == null || url == null) return url;

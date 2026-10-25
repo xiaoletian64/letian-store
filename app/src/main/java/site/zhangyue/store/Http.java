@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 /** Http — 极简 HTTP 工具。 */
 public final class Http {
@@ -24,6 +25,15 @@ public final class Http {
             return bo.toByteArray();
         } finally {
             c.disconnect();
+        }
+    }
+
+    /** 静默拉取文本：任何失败返回 null，不抛异常（后台探测用）。 */
+    public static String quiet(String url) {
+        try {
+            return new String(bytes(url), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return null;
         }
     }
 }

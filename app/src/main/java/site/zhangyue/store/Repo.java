@@ -33,6 +33,11 @@ public final class Repo {
 
     public static Model.Catalog catalog() { return sCatalog; }
 
+    /** updates.json 地址（清单同目录；服务端只列有更新的条目，可选）。 */
+    public static String updatesUrl(Context ctx) {
+        return RuntimeConfig.base(ctx) + "updates.json";
+    }
+
     public static synchronized void refresh(Context ctx, Cb cb) {
         if (cb != null && !S_CB.contains(cb)) S_CB.add(cb);
         Model.fetch(RuntimeConfig.indexUrl(ctx), (c, e) -> MAIN.post(() -> {
@@ -62,12 +67,24 @@ public final class Repo {
     private static void probeDownloadHost(Context ctx, Model.Catalog c) {
         String cdn = RuntimeConfig.cdnBase(ctx);
         if (cdn == null) return;
+        // 样本优先级：cdn 相对路径映射存在的 apps/…apk > 目录里任意 apk 全路径映射
         String probe = null;
+        String root = originRoot(RuntimeConfig.base(ctx));
         for (Model.App a : c.apps) {
-            if (a.url != null && a.url.endsWith(".apk")) { probe = a.url; break; }
+            if (a.url == null || !a.url.endsWith(".apk")) continue;
+            if (a.url.startsWith(root + "apps/")) {
+                probe = cdn + a.url.substring(root.length());
+                break;
+            }
         }
-        if (probe == null || probe.startsWith(cdn)) return;
-        final String p = RuntimeConfig.accelerate(ctx, probe);
+        if (probe == null) {
+            for (Model.App a : c.apps) {
+                if (a.url != null && a.url.endsWith(".apk")) { probe = a.url; break; }
+            }
+            if (probe == null || probe.startsWith(cdn)) return;
+            probe = RuntimeConfig.accelerate(ctx, probe);
+        }
+        final String p = probe;
         new Thread(() -> {
             try {
                 java.net.HttpURLConnection conn =
@@ -84,6 +101,12 @@ public final class Repo {
                 }
             } catch (Throwable ignore) { }
         }, "cdn-probe").start();
+    }
+
+    /** https://host/app/ → https://host/ */
+    private static String originRoot(String base) {
+        int i = base.indexOf('/', 8);
+        return i > 0 ? base.substring(0, i + 1) : base;
     }
 
     /** 点下载时若 CDN 探测通过，把任务的 url 换成 CDN 域。 */

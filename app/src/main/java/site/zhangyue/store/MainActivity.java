@@ -183,6 +183,7 @@ public class MainActivity extends Activity {
         super.onResume();
         DlManager.addListener(dlListener);
         renderList();
+        UpdateService.start(this);   // 后台自动更新检查（服务内部节流：30 分钟内不重复拉目录）
         if (Repo.stale()) {
             Repo.refresh(this, (ok, e) -> renderList());
         }
