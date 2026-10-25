@@ -12,15 +12,14 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** DlManager — 串行下载队列 + 进度通知 + SHA256 校验 + 自动重试 + 备用源回落。 */
+/** DlManager — 串行下载队列 + 进度通知 + SHA256 校验 + 自动重试 + 备用源回落 + 已装清理。 */
 public final class DlManager {
     public static final String CHANNEL = "dl";
     public static final int NOTIFY_ID = 42;
@@ -56,6 +55,9 @@ public final class DlManager {
         for (Listener l : LISTENERS) l.onTasksChanged();
     }
 
+    /** 供外部（如安装完成回调）触发界面刷新。 */
+    public static void fireChange() { fire(); }
+
     public static File apkFile(Context ctx, String slug) {
         return new File(ctx.getExternalFilesDir("apks"), slug + ".apk");
     }
@@ -65,6 +67,40 @@ public final class DlManager {
     public static boolean busy() {
         for (Task t : TASKS.values()) if (t.state == 0 || t.state == 1) return true;
         return false;
+    }
+
+    /**
+     * 清理已安装完成的安装包：包已安装且已装版本号 ≥ 安装包版本号 → 删 apk + .sha。
+     * 安装包版本号优先读 sidecar 第二行 "vc N"（下载时写入），旧文件回落清单版本。
+     */
+    public static void sweepInstalled(Context ctx) {
+        File dir = ctx.getExternalFilesDir("apks");
+        File[] files = dir != null ? dir.listFiles() : null;
+        if (files == null) return;
+        for (File f : files) {
+            String n = f.getName();
+            if (!n.endsWith(".apk")) continue;
+            String slug = n.substring(0, n.length() - 4);
+            Model.App a = Repo.find(slug);
+            if (a == null) continue;                 // 已下架应用的手动包，不动
+            File side = new File(f.getAbsolutePath() + ".sha");
+            long apkVc = -1;
+            if (side.exists()) {
+                try {
+                    for (String l : new String(java.nio.file.Files.readAllBytes(side.toPath()),
+                            StandardCharsets.UTF_8).split("\n")) {
+                        if (l.startsWith("vc ")) {
+                            apkVc = Long.parseLong(l.substring(3).trim());
+                        }
+                    }
+                } catch (Throwable ignore) { }
+            }
+            if (apkVc < 0) apkVc = a.versionCode;
+            if (Apps.installedVersion(ctx, a) >= apkVc) {
+                f.delete();
+                side.delete();
+            }
+        }
     }
 
     public static synchronized void enqueue(Context ctx, Model.App a) {
@@ -217,10 +253,11 @@ public final class DlManager {
             tmp.delete();                        // 内容不对，part 留着只会一直失败
             throw new Exception("SHA256 校验失败");
         }
-        // 完整下载：记录 sha 到 sidecar 供二次校验
-        java.io.FileWriter fw = new java.io.FileWriter(t.file.getAbsolutePath() + ".sha");
-        fw.write(hex);
-        fw.close();
+        // 完整下载：sidecar 记 sha + 版本号（供安装后清理判断）
+        java.io.PrintWriter pw = new java.io.PrintWriter(t.file.getAbsolutePath() + ".sha", "UTF-8");
+        pw.println(hex);
+        pw.println("vc " + t.app.versionCode);
+        pw.close();
         if (!tmp.renameTo(t.file)) {
             // rename 失败兜底拷贝
             java.nio.file.Files.copy(tmp.toPath(), t.file.toPath(),
